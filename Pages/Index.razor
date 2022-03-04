@@ -1,0 +1,106 @@
+﻿@page "/"
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+
+<PageTitle>Index</PageTitle>
+
+
+<div class="container w-75 shadow mt-4 p-3 mb-5 rounded">
+    <div class="row">
+        <h1 class="text-center " style="color:#4dd4ac">Personal Todo List</h1>
+    </div>
+    
+    <div class="row pb-2">
+        <div class="col-md-9 col-lg-10 my-1 my-md-0">
+            <input type="text" @bind-value=todo class="form-control"/>
+        </div>
+        <div class="col-md-3 col-lg-2">
+            <button @onclick="AddTodo" class="btn btn-outline-info w-100">Add</button>
+        </div>
+    </div>
+    <div class="row m-auto">
+       <ul class="list-group rounded-0 mx-0 px-0">
+           @foreach (var item in todos.OrderBy(x=>x.TodoTitle).ToList())
+            {
+                <li class="list-group-item border-0 d-flex justify-content-between align-items-center ps-0" style="cursor:pointer;">
+                    <div class="d-flex align-items-center "> 
+                        @if (item.IsComplete)
+                        {
+                            <input class="form-check-input me-3 d-block" type="checkbox" checked @onclick="async ()=>{await UpdateIsCompleate(item.Id);}"/>
+                            <p class="m-0 fw-bold text-primary text-decoration-line-through">@item.TodoTitle</p>
+                        }
+                        else
+                        {
+                            <input class="form-check-input me-3 d-block"  type="checkbox" @onclick="async ()=>{await UpdateIsCompleate(item.Id);}"/>
+                            <p class="m-0 fw-bold text-primary">@item.TodoTitle</p>
+                        }
+
+                </div>
+                <button class="btn btn-outline-danger fs-6 px-2 py-1 d-block" @onclick="async ()=>{await Delete(item.Id);}">
+                    <span class="oi oi-trash"></span>
+                </button>
+            </li>
+          }
+        </ul>
+    </div>
+</div>
+
+     
+
+
+
+
+
+@code{
+    string todo = "";
+    List<Todo>? todos { get; set; } = new();
+    protected override async Task OnInitializedAsync()
+    {
+        var isEmpty = await localStorage.GetItemAsync<List<Todo>>("todo");
+
+        if(isEmpty !=null)
+        {
+            todos = isEmpty;
+            Console.WriteLine(isEmpty);
+        }
+
+    }
+    async Task AddTodo()
+    {
+        if(todo.Trim() !=string.Empty)
+        {
+            todos.Add(new Todo { Id=ShortId.Generate(),TodoTitle=todo,IsComplete=false});
+            todo = "";
+            await localStorage.SetItemAsync("todo",todos);
+        }
+
+    }
+    async Task Delete(string todoId)
+    {
+        var allData=await localStorage.GetItemAsync<List<Todo>>("todo");
+        var newData = allData.Where(x => x.Id != todoId).ToList();
+        await localStorage.SetItemAsync("todo",newData);
+        todos = newData;
+        StateHasChanged();
+    }
+    async Task UpdateIsCompleate(string todoId)
+    {
+
+        var allData=await localStorage.GetItemAsync<List<Todo>>("todo");
+        var newData = allData.FirstOrDefault(x => x.Id == todoId);
+
+        todos=todos.Where(x=>x.Id!=newData.Id).ToList();
+        await localStorage.ClearAsync();
+        newData.IsComplete = !newData.IsComplete;
+        newData.Id = ShortId.Generate();
+        todos.Add(newData);
+        await localStorage.SetItemAsync("todo",todos);
+        StateHasChanged();
+
+    }
+    class Todo
+    {
+        public string? Id { get; set; }
+        public string? TodoTitle { get; set; }
+        public bool IsComplete { get; set; }
+    }
+}
